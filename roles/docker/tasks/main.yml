@@ -1,0 +1,66 @@
+
+- name: install pre-reqs
+  apt:
+    state: present
+    name: ['apt-transport-https','ca-certificates','curl','software-properties-common','gnupg','lsb-release']
+  when: ansible_distribution == "Ubuntu"
+
+- name: Add Docker GPG apt Key
+  apt_key:
+    url: "{{ docker_apt_gpg_key }}"
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+- name: Add Docker Repository
+  apt_repository:
+    repo: "{{ docker_apt_repository }}"
+    state: present
+    update_cache: true
+  when: ansible_distribution == "Ubuntu"
+
+
+- name: Update apt and install docker-ce
+  apt:
+    name: docker-ce
+    state: present
+    update_cache: false
+  when: ansible_distribution == "Ubuntu"
+
+- name: Run and enable docker
+  service:
+    name: docker
+    state: started
+    enabled: true
+  when: ansible_distribution == "Ubuntu"
+
+
+- name: add docker group
+  become: true
+  become_user: root
+  group:
+       name: docker
+  notify: restart docker
+
+- name: add user to group
+  user:
+    name: "{{ item }}"
+    groups: docker
+    append: yes
+  with_list: "{{ docker_users }}"
+
+
+- set_fact:
+    docker_compose_current_version: "{{ docker_compose_vsn.stdout | regex_search('(\\d+(\\.\\d+)+)') }}"
+  when:
+    - docker_compose_vsn.stdout is defined
+
+
+- name: Install or upgrade docker-compose
+  get_url: 
+    url : "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-Linux-x86_64"
+    dest: /usr/local/bin/docker-compose
+    mode: 'a+x'
+    force: yes
+  when: >
+    docker_compose_current_version is not defined
+    or docker_compose_current_version is version(docker_compose_version, '<')

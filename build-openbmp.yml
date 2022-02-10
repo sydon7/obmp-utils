@@ -1,0 +1,31 @@
+- hosts: openbmp
+  vars:
+        - code_dir: "~/git" # location to install docker files and git repo
+        - OBMP_DATA_ROOT: "/var/openbmp" # root of the openbmp data
+        - docker_users: ['openbmp']
+
+
+  tasks:
+
+   - name: "step1: install docker/docker compose https://www.openbmp.org/getting_started.html"
+     import_role:
+         name: openbmp
+     tags: docker
+   
+   - name: "steps 2-4 ttps://www.openbmp.org/getting_started.html"
+     import_role:
+         name: openbmp
+     tags: openbmp
+
+   - name: "ready for step 5, customize the docker-compose.yml"
+     debug:
+          msg: "copy the {{code_dir}}/docker-compose_current.yml to docker-compose.yml, and edit as needed. Once you are read, re-run this play with the --tags=newbuild"
+
+
+
+   - name: "step6, build the containers"
+     shell: 
+        cmd: "OBMP_DATA_ROOT={{OBMP_DATA_ROOT}} docker-compose -f ./docker-compose.yml -p obmp up -d"
+        chdir: "{{ code_dir }}"
+     tags: [never, newbuild]
+    

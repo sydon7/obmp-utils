@@ -1,0 +1,73 @@
+   - name: setup working directory
+     ansible.builtin.file:
+          path: "{{ code_dir }}"
+          state: directory
+
+
+   - name: backup existing docker-compose.yml if there is a file there
+     ansible.builtin.copy:
+          src: "{{ code_dir }}/docker-compose.yml"
+          dest: "{{ code_dir }}/docker-compose.yml.sav"
+          remote_src: yes
+
+
+
+   - name: download docker-compose file to docker-compose_current.yml (so we we don't splash an existing config)
+     ansible.builtin.get_url:
+          url: "https://raw.githubusercontent.com/OpenBMP/obmp-docker/main/docker-compose.yml"
+          dest: "{{ code_dir }}/docker-compose_current.yml"
+
+
+
+   - name: git clone github.com/OpenBMP/obmp-grafana.git
+     ansible.builtin.git:
+          repo: "https://github.com/OpenBMP/obmp-grafana.git"
+          dest: "{{ code_dir }}/obmp-grafana"
+          clone: yes
+          update: yes
+
+
+
+
+   - name: ensure obmp_data_root exists. Make note of config guidance
+     become: true
+     become_user: root
+     ansible.builtin.file:
+          path: "{{ OBMP_DATA_ROOT }}"
+          state: directory
+          mode: "7777"
+          recurse: yes
+
+   - name: directory warning
+     ansible.builtin.debug:
+        msg: " Remeber, you might want to create the directories by hand with high performance disks etc."
+
+   - name: create sub directories
+     become: true
+     become_user: root
+     ansible.builtin.file:
+          path: "{{ OBMP_DATA_ROOT }}/{{item }}"
+          state: directory
+          mode: "7777"
+          recurse: yes
+     with_items:
+           - "config"
+           - "kafka-data"
+           - "zk-data"
+           - "zk-log"
+           - "postgres"
+           - "postgres/data"
+           - "postgres/ts"
+           - "grafana"
+
+   - name: copy grafana graphs into OBMP_DATA_ROOT/grafana/
+     ansible.builtin.copy:
+          src: "{{ code_dir }}/obmp-grafana/{{item}}"
+          dest: "{{ OBMP_DATA_ROOT }}/grafana/"
+          remote_src: yes
+     with_items:
+             - dashboards
+             - provisioning
+
+
+
